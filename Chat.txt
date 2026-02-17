@@ -1,0 +1,47 @@
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+local oldIndex = mt.__index
+
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    
+    if method == "SendAsync" and self:IsA("TextChannel") then
+        return
+    elseif method == "FireServer" and self.Name == "SayMessageRequest" then
+        return
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+mt.__index = newcclosure(function(self, key)
+    if self:IsA("TextChannel") and key == "SendAsync" then
+        return function() end
+    end
+    return oldIndex(self, key)
+end)
+
+setreadonly(mt, true)
+
+pcall(function()
+    local tcs = game:GetService("TextChatService")
+    for _, chan in pairs(tcs.TextChannels:GetChildren()) do
+        chan.SendAsync = function() end
+    end
+end)
+
+pcall(function()
+    local rep = game:GetService("ReplicatedStorage")
+    local events = rep:FindFirstChild("DefaultChatSystemChatEvents")
+    if events then
+        local say = events:FindFirstChild("SayMessageRequest")
+        if say then say.FireServer = function() end end
+    end
+end)
+
+pcall(function()
+    local chat = game:GetService("Chat")
+    chat.Chat = function() end
+end)
